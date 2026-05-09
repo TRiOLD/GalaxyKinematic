@@ -1,16 +1,15 @@
 ////////////////////////////////////
 #include "calckinematic.h"
 
-#include <iostream>
-#include <algorithm>
+#include <condition_variable>
 #include <functional>
+#include <atomic>
+#include <mutex>
+#include <queue>
 #include <thread>
 
 //ALGLIB Lib
 #include <interpolation.h>
-//#include <optimization.h>
-//#include <specialfunctions.h>
-//#include <statistics.h>
 using namespace alglib;
 
 #include <TException.h>
@@ -22,7 +21,117 @@ struct CentroidProcessingData
 {
     Centroid::Cartesian centroidGCC;
     std::size_t localStarsAmount;
+    std::size_t estimatedRAM;
 };
+
+class ThreadPool
+{
+public:
+    ThreadPool(size_t threads)
+    {
+        for (size_t i = 0; i < threads; ++i) {
+            workers.emplace_back([this]() {
+                while (true) {
+                    std::function<void()> task;
+                    {
+                        std::unique_lock<std::mutex> lock(queue_mutex);
+                        condition.wait(lock, [this]() {
+                            return stop || !tasks.empty();
+                        });
+
+                        if (stop && tasks.empty())
+                            return;
+
+                        task = std::move(tasks.front());
+                        tasks.pop();
+                    }
+
+                    task();
+
+                    tasks_in_progress--;
+                    condition.notify_all();
+                }
+            });
+        }
+    }
+
+    void enqueue(std::function<void()> task)
+    {
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex);
+            tasks.push(task);
+            tasks_in_progress++;
+        }
+        condition.notify_one();
+    }
+
+    void wait()
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        condition.wait(lock, [this]() {
+            return tasks.empty() && tasks_in_progress == 0;
+        });
+    }
+
+    ~ThreadPool()
+    {
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex);
+            stop = true;
+        }
+        condition.notify_all();
+
+        for (auto& t : workers)
+            t.join();
+    }
+
+private:
+    std::vector<std::thread> workers;
+    std::queue<std::function<void()>> tasks;
+
+    std::mutex queue_mutex;
+    std::condition_variable condition;
+    std::atomic<size_t> tasks_in_progress{0};
+    bool stop = false;
+};
+
+////////////////////////////////////
+class MemoryLimiter
+{
+public:
+    explicit MemoryLimiter(size_t limitMB)
+        : limit(limitMB), used(0)
+    {}
+
+    void acquire(size_t amount)
+    {
+        std::unique_lock lock(mtx);
+
+        cv.wait(lock, [&]{
+            return used + amount <= limit;
+        });
+
+        used += amount;
+    }
+
+    void release(size_t amount)
+    {
+        {
+            std::lock_guard lock(mtx);
+            used -= amount;
+        }
+
+        cv.notify_all();
+    }
+
+private:
+    size_t limit;
+    size_t used;
+
+    std::mutex mtx;
+    std::condition_variable cv;
+};
+
 
 ////////////////////////////////////
 bool _isInSphere(double radius, const Star::Cartesian& localGC)
@@ -57,6 +166,13 @@ void _selectStars(
             localStars_ptrs.push_back(&it);
 }
 
+std::size_t _estimateThreadRAM(std::size_t localStarsSize)
+{
+    constexpr std::size_t bytesPerStar = 3072; // ~3 KB (with alglib matrix)
+    constexpr std::size_t bytesPerMB = 1024 * 1024;
+    return (localStarsSize * bytesPerStar) / bytesPerMB;
+}
+
 std::vector<CentroidProcessingData> _dataPreparation(
         const CalcKinematic::ConfigProcessing& config,
         const std::list<Star>& allStars)
@@ -64,41 +180,44 @@ std::vector<CentroidProcessingData> _dataPreparation(
     std::size_t cAmountX = (config.maxX - config.minX) / config.step + 1;
     std::size_t cAmountY = (config.maxY - config.minY) / config.step + 1;
     std::size_t cAmountZ = (config.maxZ - config.minZ) / config.step + 1;
-    std::size_t cetroidsAmount = cAmountX * cAmountY * cAmountZ;
-    std::vector<CentroidProcessingData> res(cetroidsAmount);
+    std::size_t centroidsAmount = cAmountX * cAmountY * cAmountZ;
+    std::vector<CentroidProcessingData> res(centroidsAmount);
 
-    std::size_t threadsAmount = config.threadsAmount;
-    if(threadsAmount > cetroidsAmount) threadsAmount = cetroidsAmount;
-    std::vector<std::thread> threads(threadsAmount);
-
-    std::size_t c = 0, t = 0;
+    std::size_t c = 0;
+    std::size_t maxThreadsAmount = config.threadsAmount;
+    if(maxThreadsAmount > centroidsAmount) maxThreadsAmount = centroidsAmount;
+    ThreadPool pool(maxThreadsAmount);
+    std::mutex maxEstimatedRAMMtx;
+    size_t maxEstimatedRAM = 0;
     for(std::size_t i = 0; i < cAmountX; ++i)
         for(std::size_t j = 0; j < cAmountY; ++j)
-            for(std::size_t k = 0; k < cAmountZ; ++k)
-            {
-                res.at(c).centroidGCC = Centroid::Cartesian(
-                    config.minX + config.step * i,
-                    config.minY + config.step * j,
-                    config.minZ + config.step * k);
-
-                threads.at(t) = std::thread(
-                    _calcStarsAmount, std::ref(res.at(c).localStarsAmount), std::cref(allStars),
-                    std::cref(res.at(c).centroidGCC), config.starsRegionRadius);
-                ++t;
+            for(std::size_t k = 0; k < cAmountZ; ++k) {
+                pool.enqueue([&, c, i, j, k]() {
+                    res.at(c).centroidGCC = Centroid::Cartesian(
+                        config.minX + config.step * i,
+                        config.minY + config.step * j,
+                        config.minZ + config.step * k);
+                    _calcStarsAmount(res.at(c).localStarsAmount, allStars,
+                                     res.at(c).centroidGCC, config.starsRegionRadius);
+                    res.at(c).estimatedRAM = _estimateThreadRAM(res.at(c).localStarsAmount);
+                    {
+                        std::lock_guard lock(maxEstimatedRAMMtx);
+                        if (maxEstimatedRAM < res.at(c).estimatedRAM) {
+                            maxEstimatedRAM = res.at(c).estimatedRAM;
+                        }
+                    }
+                });
                 ++c;
-
-                if(t == threadsAmount || c == cetroidsAmount)
-                {
-                    t = 0;
-                    for(auto& th : threads)
-                        if(th.joinable())
-                            th.join();
-                }
             }
+    pool.wait();
 
-    std::sort(res.begin(), res.end(),
-        [](const CentroidProcessingData& CPD1, const CentroidProcessingData& CPD2)
-        {return (CPD1.localStarsAmount > CPD2.localStarsAmount);});
+    if (maxEstimatedRAM > config.RAMlimit) {
+        throw Exception("Needed minimum " + std::to_string(maxEstimatedRAM) + "MB RAM for processing");
+    }
+
+    LOG.writeInfo(
+        std::to_string(centroidsAmount) +
+        " centroids has been prepared.");
     return res;
 }
 
@@ -177,55 +296,38 @@ void _calcCentroid(
     }
 }
 
-std::size_t _estimateStartRAM(std::size_t allStarsAmount)
-{
-    return std::size_t(allStarsAmount / 7500.0);
-}
-
-std::size_t _estimateThreadRAM(std::size_t localStarsSize)
-{
-    return std::size_t(localStarsSize / 250.0);
-}
-
 std::vector<Centroid> CalcKinematic::calcCentroids(
         const std::list<Star>& allStars,
         const CalcKinematic::ConfigProcessing& config)
 {
     std::vector<CentroidProcessingData> CPDs = _dataPreparation(config, allStars);
-    std::size_t cetroidsAmount = CPDs.size();
-    std::vector<Centroid> res(cetroidsAmount);
+    std::size_t centroidsAmount = CPDs.size();
+    std::vector<Centroid> res(centroidsAmount);
 
     std::size_t maxThreadsAmount = config.threadsAmount;
-    if(maxThreadsAmount > cetroidsAmount) maxThreadsAmount = cetroidsAmount;
-    std::vector<std::thread> threads(maxThreadsAmount);
+    if(maxThreadsAmount > centroidsAmount) maxThreadsAmount = centroidsAmount;
+    ThreadPool pool(maxThreadsAmount);
+    std::atomic<size_t> doneAnount{0};
+    MemoryLimiter ramLimiter(config.RAMlimit);
+    for (std::size_t c = 0; c < centroidsAmount; ++c) {
+        pool.enqueue([&, c]() {
+            ramLimiter.acquire(CPDs.at(c).estimatedRAM);
+            try {
+                _calcCentroid(res.at(c), CPDs.at(c), config.starsRegionRadius, allStars);
+            } catch (...) {
+                ramLimiter.release(CPDs.at(c).estimatedRAM);
+                throw;
+            }
+            ramLimiter.release(CPDs.at(c).estimatedRAM);
 
-    std::size_t threadsRAM = 0;
-    std::size_t startRAM = _estimateStartRAM(allStars.size());
-    for(std::size_t c = 0, t = 0; c < cetroidsAmount;)
-    {
-        threadsRAM += _estimateThreadRAM(CPDs.at(c).localStarsAmount);
-        bool isRAMoverflow = startRAM+threadsRAM >= config.RAMlimit;
-        if(!isRAMoverflow && t < maxThreadsAmount)
-        {
-            threads.at(t) = std::thread(
-                _calcCentroid, std::ref(res.at(c)), std::cref(CPDs.at(c)),
-                config.starsRegionRadius, std::cref(allStars));
-            ++t;
-            ++c;
-        }
-
-        if(isRAMoverflow || t == 0)
-            Exception("Kinematic::calcCentroids() Not enough RAM!");
-
-        if(isRAMoverflow || t == maxThreadsAmount || c == cetroidsAmount)
-        {
-            t = 0;
-            threadsRAM = 0;
-            for(auto& th : threads)
-                if(th.joinable())
-                    th.join();
-        }
+            ++doneAnount;
+            if (doneAnount % 100 == 0 || doneAnount == centroidsAmount) {
+                LOG.writeInfo(std::to_string(doneAnount) + " / " + std::to_string(centroidsAmount) +
+                    " centroids has been calculated.");
+            }
+        });
     }
+    pool.wait();
     return res;
 }
 
