@@ -17,8 +17,8 @@ using namespace alglib;
 using namespace TRiOLD;
 
 ////////////////////////////////////
-struct CentroidProcessingData
-{
+namespace {
+struct CentroidProcessingData {
     Centroid::Cartesian centroidGCC;
     std::size_t localStarsAmount;
     std::size_t estimatedRAM;
@@ -38,16 +38,13 @@ public:
                         condition.wait(lock, [this]() {
                             return stop || !tasks.empty();
                         });
-
-                        if (stop && tasks.empty())
+                        if (stop && tasks.empty()) {
                             return;
-
+                        }
                         task = std::move(tasks.front());
                         tasks.pop();
                     }
-
                     task();
-
                     tasks_in_progress--;
                     condition.notify_all();
                 }
@@ -81,8 +78,9 @@ public:
         }
         condition.notify_all();
 
-        for (auto& t : workers)
-            t.join();
+        for (std::thread &w : workers) {
+            w.join();
+        }
     }
 
 private:
@@ -106,11 +104,9 @@ public:
     void acquire(size_t amount)
     {
         std::unique_lock lock(mtx);
-
         cv.wait(lock, [&]{
             return used + amount <= limit;
         });
-
         used += amount;
     }
 
@@ -120,7 +116,6 @@ public:
             std::lock_guard lock(mtx);
             used -= amount;
         }
-
         cv.notify_all();
     }
 
@@ -134,7 +129,7 @@ private:
 
 
 ////////////////////////////////////
-bool _isInSphere(double radius, const Star::Cartesian& localGC)
+bool _isInSphere(double radius, const Star::Cartesian &localGC)
 {
     return std::sqrt(
         localGC.x*localGC.x +
@@ -143,27 +138,31 @@ bool _isInSphere(double radius, const Star::Cartesian& localGC)
 }
 
 void _calcStarsAmount(
-        std::size_t& starsAmount,
-        const std::list<Star>& allStars,
+        std::size_t &starsAmount,
+        const std::list<Star> &allStars,
         const Centroid::Cartesian &centroidGCC,
         double starsRegionRadius)
 {
     starsAmount = 0;
-    for(const auto& it : allStars)
-        if(_isInSphere(starsRegionRadius, it.getcalcGCC_local(centroidGCC)))
+    for (const Star &s : allStars) {
+        if (_isInSphere(starsRegionRadius, s.getcalcGCC_local(centroidGCC))) {
             ++starsAmount;
+        }
+    }
 }
 
 void _selectStars(
-        std::list<const Star*>& localStars_ptrs,
-        const std::list<Star>& allStars,
+        std::list<const Star *> &localStars_ptrs,
+        const std::list<Star> &allStars,
         const Centroid::Cartesian &centroidGCC,
         double starsRegionRadius)
 {
     localStars_ptrs.clear();
-    for(const auto& it : allStars)
-        if(_isInSphere(starsRegionRadius, it.getcalcGCC_local(centroidGCC)))
-            localStars_ptrs.push_back(&it);
+    for (const Star &s : allStars) {
+        if (_isInSphere(starsRegionRadius, s.getcalcGCC_local(centroidGCC))) {
+            localStars_ptrs.push_back(&s);
+        }
+    }
 }
 
 std::size_t _estimateThreadRAM(std::size_t localStarsSize)
@@ -174,8 +173,8 @@ std::size_t _estimateThreadRAM(std::size_t localStarsSize)
 }
 
 std::vector<CentroidProcessingData> _dataPreparation(
-        const CalcKinematic::ConfigProcessing& config,
-        const std::list<Star>& allStars)
+        const CalcKinematic::ConfigProcessing &config,
+        const std::list<Star> &allStars)
 {
     std::size_t cAmountX = (config.maxX - config.minX) / config.step + 1;
     std::size_t cAmountY = (config.maxY - config.minY) / config.step + 1;
@@ -185,13 +184,15 @@ std::vector<CentroidProcessingData> _dataPreparation(
 
     std::size_t c = 0;
     std::size_t maxThreadsAmount = config.threadsAmount;
-    if(maxThreadsAmount > centroidsAmount) maxThreadsAmount = centroidsAmount;
+    if (maxThreadsAmount > centroidsAmount) {
+        maxThreadsAmount = centroidsAmount;
+    }
     ThreadPool pool(maxThreadsAmount);
     std::mutex maxEstimatedRAMMtx;
     size_t maxEstimatedRAM = 0;
-    for(std::size_t i = 0; i < cAmountX; ++i)
-        for(std::size_t j = 0; j < cAmountY; ++j)
-            for(std::size_t k = 0; k < cAmountZ; ++k) {
+    for (std::size_t i = 0; i < cAmountX; ++i)
+        for (std::size_t j = 0; j < cAmountY; ++j)
+            for (std::size_t k = 0; k < cAmountZ; ++k) {
                 pool.enqueue([&, c, i, j, k]() {
                     res.at(c).centroidGCC = Centroid::Cartesian(
                         config.minX + config.step * i,
@@ -210,14 +211,10 @@ std::vector<CentroidProcessingData> _dataPreparation(
                 ++c;
             }
     pool.wait();
-
     if (maxEstimatedRAM > config.RAMlimit) {
         throw Exception("Needed minimum " + std::to_string(maxEstimatedRAM) + "MB RAM for processing");
     }
-
-    LOG.writeInfo(
-        std::to_string(centroidsAmount) +
-        " centroids has been prepared.");
+    LOG.writeInfo(std::to_string(centroidsAmount) + " centroids has been prepared.");
     return res;
 }
 
@@ -239,45 +236,38 @@ Centroid _initNoCalcCentroid(const CentroidProcessingData& CPD)
 }
 
 void _calcCentroid(
-        Centroid& centroid,
-        const CentroidProcessingData& CPD,
+        Centroid &centroid,
+        const CentroidProcessingData &CPD,
         double starsRegionRadius,
-        const std::list<Star>& allStars)
+        const std::list<Star> &allStars)
 {
     unsigned int starsAmount = CPD.localStarsAmount;
-    if(starsAmount < 4)
-    {
+    if (starsAmount < 4) {
         centroid = _initNoCalcCentroid(CPD);
         return;
     }
-
-    std::list<const Star*> localStars_ptrs;
-    _selectStars(localStars_ptrs, allStars,
-                 CPD.centroidGCC, starsRegionRadius);
-
+    std::list<const Star *> localStars_ptrs;
+    _selectStars(localStars_ptrs, allStars, CPD.centroidGCC, starsRegionRadius);
     real_1d_array y;
     real_2d_array fmatrix;
     y.setlength(3*starsAmount);
     fmatrix.setlength(3*starsAmount, 12);
 
     std::size_t e = 0;
-    for(auto it : localStars_ptrs)
-    {
+    for (const Star *s : localStars_ptrs) {
         std::vector<double> foos;
         std::vector<std::vector<double>> polisVars;
         _createVariables(foos, polisVars,
-            it->getcalcGCC_local(CPD.centroidGCC), it->getGCV());
-        for(std::size_t r = 0; r < 3; ++r)
-        {
+            s->getcalcGCC_local(CPD.centroidGCC), s->getGCV());
+        for (std::size_t r = 0; r < 3; ++r) {
             y[e+r] = foos[r];
-            for(std::size_t c = 0; c < 12; ++c)
+            for (std::size_t c = 0; c < 12; ++c) {
                 fmatrix[e+r][c] = polisVars[r][c];
+            }
         }
         e += 3;
     }
-
-    try
-    {
+    try {
         ae_int_t info;
         real_1d_array x;
         lsfitreport rep;
@@ -288,24 +278,25 @@ void _calcCentroid(
             {x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11]});
         centroid.setKPsErr(
             {e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8], e[9], e[10], e[11]});
-    }
-    catch (alglib::ap_error exc)
-    {
+    } catch (alglib::ap_error exc) {
         centroid = _initNoCalcCentroid(CPD);
-        throw (Exception(exc.msg, -30));
+        throw Exception(exc.msg, -30);
     }
+}
 }
 
 std::vector<Centroid> CalcKinematic::calcCentroids(
-        const std::list<Star>& allStars,
-        const CalcKinematic::ConfigProcessing& config)
+        const std::list<Star> &allStars,
+        const CalcKinematic::ConfigProcessing &config)
 {
     std::vector<CentroidProcessingData> CPDs = _dataPreparation(config, allStars);
     std::size_t centroidsAmount = CPDs.size();
     std::vector<Centroid> res(centroidsAmount);
 
     std::size_t maxThreadsAmount = config.threadsAmount;
-    if(maxThreadsAmount > centroidsAmount) maxThreadsAmount = centroidsAmount;
+    if (maxThreadsAmount > centroidsAmount) {
+        maxThreadsAmount = centroidsAmount;
+    }
     ThreadPool pool(maxThreadsAmount);
     std::atomic<size_t> doneAnount{0};
     MemoryLimiter ramLimiter(config.RAMlimit);

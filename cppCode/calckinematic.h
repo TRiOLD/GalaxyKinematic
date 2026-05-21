@@ -6,7 +6,6 @@
 #include "star.h"
 #include "centroid.h"
 
-#include <iostream>
 #include <vector>
 #include <list>
 
@@ -33,8 +32,8 @@ namespace CalcKinematic
     ////////////////////////////////
 
     std::vector<Centroid> calcCentroids(
-            const std::list<Star>& allStars,
-            const ConfigProcessing& config);
+            const std::list<Star> &allStars,
+            const ConfigProcessing &config);
 }
 
 ////////////////////////////////////

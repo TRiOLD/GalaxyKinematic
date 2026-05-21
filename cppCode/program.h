@@ -3,7 +3,6 @@
 #define PROGRAM_H
 
 ////////////////////////////////////
-#include <vector>
 #include <string>
 
 ////////////////////////////////////
@@ -39,7 +38,7 @@ private:
 
 public:
     ~Program();
-    Program(int argc, char** argv);
+    Program(int argc, char **argv);
 
 private:
     std::string m_prgname;
@@ -47,7 +46,7 @@ private:
     Argvs m_argvs;
 
 private:
-    void _parseArguments(int argc, char** argv);
+    void _parseArguments(int argc, char **argv);
     void _initLogger();
 
     void _process_version();

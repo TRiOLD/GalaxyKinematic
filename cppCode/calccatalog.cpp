@@ -11,32 +11,31 @@
 using namespace TRiOLD;
 
 ////////////////////////////////////
+namespace {
 double _d2r(double angle)
 {
     return angle / 180.0 * M_PI;
 }
+}
 
-std::list<Star> CalcCatalog::readCatalog(const std::string& filepath,
-                                         const ConfigTable& config)
+std::list<Star> CalcCatalog::readCatalog(const std::string &filepath,
+                                         const ConfigTable &config)
 {
     Filetable file;
-    switch (config.fileType)
-    {
+    switch (config.fileType) {
         case 1: file.open(filepath, Filetable::IN, Filetable::TSV); break;
         case 2: file.open(filepath, Filetable::IN, Filetable::CSV); break;
         default: file.open(filepath);
     }
-
-    if(!file.isOpen())
-        Exception("Catalog::readCatalog() !file.isOpen()");
-
+    if (!file.isOpen()) {
+        throw Exception("Catalog::readCatalog() !file.isOpen()");
+    }
     Filetable::Row row;
-    if(config.isWithHeader)
+    if (config.isWithHeader) {
         file >> row;
-
+    }
     std::list<Star> res;
-    while(file >> row)
-    {
+    while (file >> row) {
         Star::Equatorial EqC(
             (config.coordInRad) ? row.at(config.cn_ra).toDouble() :
                                   _d2r(row.at(config.cn_ra).toDouble()),
@@ -56,15 +55,14 @@ std::list<Star> CalcCatalog::readCatalog(const std::string& filepath,
 std::list<Star> CalcCatalog::readCatalog_agreedStruct(const std::string& filepath)
 {
     Filetable file(filepath);
-    if(!file.isOpen())
-        Exception("Catalog::readCatalog() !file.isOpen()");
-
+    if (!file.isOpen()) {
+        throw Exception("Catalog::readCatalog() !file.isOpen()");
+    }
     Filetable::Row row;
     file >> row;
 
     std::list<Star> res;
-    while(file >> row)
-    {
+    while (file >> row) {
         Star::Cartesian GCC(
             row.at(0).toDouble(), row.at(1).toDouble(), row.at(2).toDouble());
         Star::Cartesian GCV(
@@ -76,7 +74,7 @@ std::list<Star> CalcCatalog::readCatalog_agreedStruct(const std::string& filepat
 }
 
 std::list<Star> CalcCatalog::createPixCatalog_agreedStruct(const std::list<Star> &stars,
-                                                           const ConfigPixelization& config)
+                                                           const ConfigPixelization &config)
 {
     unsigned int areaSizeX = (config.maxX - config.minX) / (config.pixelHalfWidth * 2.0) + 1;
     unsigned int areaSizeY = (config.maxY - config.minY) / (config.pixelHalfWidth * 2.0) + 1;
@@ -88,14 +86,14 @@ std::list<Star> CalcCatalog::createPixCatalog_agreedStruct(const std::list<Star>
     typedef std::vector<std::vector<std::vector<PixelV>>> PixelsV3D;
 
     PixelsV3D pixelsV(areaSizeZ, PixelsVXoY(areaSizeY, PixelsVoX(areaSizeX)));
-    for(const Star &s : stars) {
+    for (const Star &s : stars) {
         Star::Cartesian GCC = s.getGCC();
-        if(GCC.x > config.maxX + config.pixelHalfWidth ||
-           GCC.x < config.minX - config.pixelHalfWidth ||
-           GCC.y > config.maxY + config.pixelHalfWidth ||
-           GCC.y < config.minY - config.pixelHalfWidth ||
-           GCC.z > config.maxZ + config.pixelHalfWidth ||
-           GCC.z < config.minZ - config.pixelHalfWidth) {
+        if (GCC.x > config.maxX + config.pixelHalfWidth ||
+            GCC.x < config.minX - config.pixelHalfWidth ||
+            GCC.y > config.maxY + config.pixelHalfWidth ||
+            GCC.y < config.minY - config.pixelHalfWidth ||
+            GCC.z > config.maxZ + config.pixelHalfWidth ||
+            GCC.z < config.minZ - config.pixelHalfWidth) {
             continue;
         }
         int i = (GCC.x - config.minX - config.pixelHalfWidth) / (config.pixelHalfWidth * 2.0);
@@ -103,15 +101,14 @@ std::list<Star> CalcCatalog::createPixCatalog_agreedStruct(const std::list<Star>
         int k = (GCC.z - config.minZ - config.pixelHalfWidth) / (config.pixelHalfWidth * 2.0);
         pixelsV.at(k).at(j).at(i).push_back(s.getGCV());
     }
-
     std::list<Star> res;
-    for(unsigned int k = 0; k < areaSizeZ; ++k) {
-        for(unsigned int j = 0; j < areaSizeY; ++j) {
-            for(unsigned int i = 0; i < areaSizeX; ++i) {
+    for (unsigned int k = 0; k < areaSizeZ; ++k) {
+        for (unsigned int j = 0; j < areaSizeY; ++j) {
+            for (unsigned int i = 0; i < areaSizeX; ++i) {
                 const PixelV &pixelV = pixelsV.at(k).at(j).at(i);
-                if(pixelV.size() >= config.minStarCount) {
+                if (pixelV.size() >= config.minStarCount) {
                     Star::Cartesian averV;
-                    for(const Star::Cartesian &subv : pixelV) {
+                    for (const Star::Cartesian &subv : pixelV) {
                         averV.x += subv.x / (double)pixelV.size();
                         averV.y += subv.y / (double)pixelV.size();
                         averV.z += subv.z / (double)pixelV.size();
@@ -127,21 +124,20 @@ std::list<Star> CalcCatalog::createPixCatalog_agreedStruct(const std::list<Star>
     return res;
 }
 
-void CalcCatalog::writeCatalog_agreedStruct(const std::string& filepath,
-                                            const std::list<Star>& stars)
+void CalcCatalog::writeCatalog_agreedStruct(const std::string &filepath,
+                                            const std::list<Star> &stars)
 {
     Filetable file(filepath, Filetable::OUT, Filetable::CSV);
-    if(!file.isOpen())
-        Exception("Catalog::readCatalog() !file.isOpen()");
-
+    if (!file.isOpen()) {
+        throw Exception("Catalog::readCatalog() !file.isOpen()");
+    }
     file << Filetable::Row({
         {"X[kpc]"}, {"Y[kpc]"}, {"Z[kpc]"},
         {"VX[km/s]"}, {"VY[km/s]"}, {"VZ[km/s]"}});
 
-    for(const auto& it : stars)
-    {
-        Star::Cartesian GCC = it.getGCC();
-        Star::Cartesian GCV = it.getGCV();
+    for (const Star &s : stars) {
+        Star::Cartesian GCC = s.getGCC();
+        Star::Cartesian GCV = s.getGCV();
         file << Filetable::Row(
             {{GCC.x, 12}, {GCC.y, 12}, {GCC.z, 12},
              {GCV.x, 12}, {GCV.y, 12}, {GCV.z, 12}});
@@ -151,14 +147,14 @@ void CalcCatalog::writeCatalog_agreedStruct(const std::string& filepath,
 
 ////////////////////////////////////
 
-void CalcCatalog::writeCentroids(const std::string& filepath,
-                                 const std::vector<Centroid>& centroids,
-                                 const ConfigConstants& config)
+void CalcCatalog::writeCentroids(const std::string &filepath,
+                                 const std::vector<Centroid> &centroids,
+                                 const ConfigConstants &config)
 {
     Filetable file(filepath, Filetable::OUT, Filetable::CSV);
-    if(!file.isOpen())
-        Exception("Catalog::readCatalog() !file.isOpen()");
-
+    if (!file.isOpen()) {
+        throw Exception("Catalog::readCatalog() !file.isOpen()");
+    }
     file << Filetable::Row({
         {"starsAmount"},
         {"X[kpc]"}, {"Y[kpc]"}, {"Z[kpc]"},
@@ -179,22 +175,21 @@ void CalcCatalog::writeCentroids(const std::string& filepath,
         {"u_rot[km/s]"}, {"v_rot[km/s]"}, {"w_rot[km/s]"},
         {"w1_rot[km/s/kpc]"}, {"w2_rot[km/s/kpc]"}, {"w3_rot[km/s/kpc]"},
         {"mp12_rot[km/s/kpc]"}, {"mp23_rot[km/s/kpc]"}, {"mp13_rot[km/s/kpc]"},
-        {"mp11_rot[km/s/kpc]"}, {"mp22_rot[km/s/kpc]"}, {"mp33_rot[km/s/kpc]"}});
-
-    for(const auto& it : centroids)
-    {
-        Centroid::Cartesian GCC = it.getGCC();
-        Centroid::Cartesian GCV = it.getGCV();
+        {"mp11_rot[km/s/kpc]"}, {"mp22_rot[km/s/kpc]"}, {"mp33_rot[km/s/kpc]"}
+    });
+    for (const Centroid &c : centroids) {
+        Centroid::Cartesian GCC = c.getGCC();
+        Centroid::Cartesian GCV = c.getGCV();
         Centroid::Cylindrical GCCC, GCCV;
-        it.getcalcGCCCandV(GCCC, GCCV,
+        c.getcalcGCCCandV(GCCC, GCCV,
             config.R_Sun, {config.VX_Sun, config.VY_Sun, config.VZ_Sun});
-        Centroid::KinematicParameters KPs = it.getKPs();
-        Centroid::KinematicParameters KPsErr = it.getKPsErr();
-        Centroid::KinematicParameters KPsRot = it.getcalcKPs_localRot(config.R_Sun);
+        Centroid::KinematicParameters KPs = c.getKPs();
+        Centroid::KinematicParameters KPsErr = c.getKPsErr();
+        Centroid::KinematicParameters KPsRot = c.getcalcKPs_localRot(config.R_Sun);
 
         const int p = 12; // precision
         file << Filetable::Row({
-            {(int)it.getStarsAmount()},
+            {(int)c.getStarsAmount()},
             {GCC.x, p}, {GCC.y, p}, {GCC.z, p},
             {GCV.x, p}, {GCV.y, p}, {GCV.z, p},
             {GCCC.R, p}, {GCCC.theta, p}, {GCCC.Z, p},

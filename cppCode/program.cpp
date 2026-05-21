@@ -29,101 +29,88 @@ Program::~Program()
 
 }
 
-Program::Program(int argc, char** argv)
+Program::Program(int argc, char **argv)
 {
     _setup();
     _parseArguments(argc, argv);
 }
 
-void Program::_parseArguments(int argc, char** argv)
+void Program::_parseArguments(int argc, char **argv)
 {
     std::vector<std::string> arguments(argv, argv + argc);
-    if(arguments.size() == 1)
-    {
+    if (arguments.size() == 1) {
         m_argvs.processType = ProcessType::HELP;
         return;
     }
-
-    for(unsigned int i = 0; i < arguments.size(); i++)
-    {
-        if(arguments.at(i).compare("--version") == 0)
-        {
+    for (unsigned int i = 0; i < arguments.size(); i++) {
+        if (arguments.at(i).compare("--version") == 0) {
             m_argvs.processType = ProcessType::VERSION;
             continue;
         }
-        if(arguments.at(i).compare("--help") == 0)
-        {
+        if (arguments.at(i).compare("--help") == 0) {
             m_argvs.processType = ProcessType::HELP;
             continue;
         }
-        if(arguments.at(i).compare("--crtstructcatalog") == 0 ||
-           arguments.at(i).compare("--catalog") == 0)
-        {
+        if (arguments.at(i).compare("--crtstructcatalog") == 0 ||
+            arguments.at(i).compare("--catalog") == 0) {
             m_argvs.processType = ProcessType::CRTSTRUCTCATALOG;
             continue;
         }
-        if(arguments.at(i).compare("--crtpixelstructcatalog") == 0 ||
-           arguments.at(i).compare("--pixcatalog") == 0)
-        {
+        if (arguments.at(i).compare("--crtpixelstructcatalog") == 0 ||
+            arguments.at(i).compare("--pixcatalog") == 0) {
             m_argvs.processType = ProcessType::CRTPXLSTRUCTCATALOG;
             continue;
         }
-        if(arguments.at(i).compare("--calckinematic") == 0 ||
-           arguments.at(i).compare("--kinematic") == 0)
-        {
+        if (arguments.at(i).compare("--calckinematic") == 0 ||
+            arguments.at(i).compare("--kinematic") == 0) {
             m_argvs.processType = ProcessType::CALCKINEMATIC;
             continue;
         }
-
-        if(arguments.at(i).compare("--infile") == 0 ||
-           arguments.at(i).compare("-i") == 0)
-            if(i+1 < arguments.size())
-            {
+        if (arguments.at(i).compare("--infile") == 0 ||
+            arguments.at(i).compare("-i") == 0) {
+            if (i+1 < arguments.size()) {
                 m_argvs.inFilePath = arguments.at(++i);
                 continue;
             }
-        if(arguments.at(i).compare("--onfile") == 0 ||
-           arguments.at(i).compare("-o") == 0)
-            if(i+1 < arguments.size())
-            {
+        }
+        if (arguments.at(i).compare("--onfile") == 0 ||
+            arguments.at(i).compare("-o") == 0) {
+            if (i+1 < arguments.size()) {
                 m_argvs.onFilePath = arguments.at(++i);
                 continue;
             }
-
-        if(arguments.at(i).compare("--config") == 0 ||
-           arguments.at(i).compare("--conf") == 0 ||
-           arguments.at(i).compare("-c") == 0)
-            if(i+1 < arguments.size())
-            {
+        }
+        if (arguments.at(i).compare("--config") == 0 ||
+            arguments.at(i).compare("--conf") == 0 ||
+            arguments.at(i).compare("-c") == 0) {
+            if (i+1 < arguments.size()) {
                 m_argvs.configPath = arguments.at(++i);
                 continue;
             }
-
-        if(arguments.at(i).compare("--agrstrct") == 0)
-            if(i+1 < arguments.size())
-            {
+        }
+        if (arguments.at(i).compare("--agrstrct") == 0) {
+            if (i+1 < arguments.size()) {
                 std::string value = arguments.at(++i);
-                if(!value.empty())
-                   m_argvs.inFileStructIsAgreed = (value.compare("true") == 0 ||
-                                                   std::atoi(value.c_str()) != 0);
+                if (!value.empty()) {
+                    m_argvs.inFileStructIsAgreed = (value.compare("true") == 0 || std::atoi(value.c_str()) != 0);
+                }
                 continue;
             }
+        }
 
-        if(arguments.at(i).compare("--log") == 0 ||
-           arguments.at(i).compare("-l") == 0)
-            if(i+1 < arguments.size())
-            {
+        if (arguments.at(i).compare("--log") == 0 ||
+            arguments.at(i).compare("-l") == 0) {
+            if (i+1 < arguments.size()) {
                 m_argvs.logFilePath = arguments.at(++i);
                 continue;
             }
-
-        if(arguments.at(i).compare("--clog") == 0)
-            if(i+1 < arguments.size())
-            {
+        }
+        if (arguments.at(i).compare("--clog") == 0)
+            if (i+1 < arguments.size()) {
                 std::string value = arguments.at(++i);
-                if(!value.empty())
-                   m_argvs.isWithConsoleLog = (value.compare("true") == 0 ||
-                                               std::atoi(value.c_str()) != 0);
+                if (!value.empty()) {
+                    m_argvs.isWithConsoleLog = (value.compare("true") == 0 || std::atoi(value.c_str()) != 0);
+                }
                 continue;
             }
     }
@@ -133,8 +120,9 @@ void Program::_initLogger()
 {
     LOG.setLevel(Logger::Level::INFO);
     LOG.setFlag_isWithCout(m_argvs.isWithConsoleLog);
-    if(!m_argvs.logFilePath.empty())
+    if (!m_argvs.logFilePath.empty()) {
         LOG.setFilepath(m_argvs.logFilePath);
+    }
 }
 
 void Program::_process_version()
@@ -201,14 +189,11 @@ void Program::_process_crtPxlStructCatalog()
     LOG.writeInfo("Start process: calculate kinematic parameters.");
 
     std::list<Star> stars;
-    if(m_argvs.inFileStructIsAgreed)
-    {
+    if (m_argvs.inFileStructIsAgreed) {
         LOG.writeInfo("Start reading input star catalog (agreed struct)...");
         LOG.writeInfo("FilePath: " + m_argvs.inFilePath);
         stars = CalcCatalog::readCatalog_agreedStruct(m_argvs.inFilePath);
-    }
-    else
-    {
+    } else {
         LOG.writeInfo("Start reading ConfigTable...");
         LOG.writeInfo("FilePath: " + m_argvs.configPath);
         CalcCatalog::ConfigTable configTable;
@@ -245,14 +230,11 @@ void Program::_process_calcKinematic()
     LOG.writeInfo("Start process: calculate kinematic parameters.");
 
     std::list<Star> stars;
-    if(m_argvs.inFileStructIsAgreed)
-    {
+    if (m_argvs.inFileStructIsAgreed) {
         LOG.writeInfo("Start reading input star catalog (agreed struct)...");
         LOG.writeInfo("FilePath: " + m_argvs.inFilePath);
         stars = CalcCatalog::readCatalog_agreedStruct(m_argvs.inFilePath);
-    }
-    else
-    {
+    } else {
         LOG.writeInfo("Start reading ConfigTable...");
         LOG.writeInfo("FilePath: " + m_argvs.configPath);
         CalcCatalog::ConfigTable configTable;
@@ -265,7 +247,6 @@ void Program::_process_calcKinematic()
     }
     LOG.writeInfo("Star catalog has been loaded. "
                   "Stars amount = " +std::to_string(stars.size()));
-
 
     LOG.writeInfo("Start reading ConfigConstants...");
     LOG.writeInfo("FilePath: " + m_argvs.configPath);
@@ -294,10 +275,8 @@ void Program::_process_calcKinematic()
 
 int Program::process()
 {
-    try
-    {
-        switch (m_argvs.processType)
-        {
+    try {
+        switch (m_argvs.processType) {
             case Program::ProcessType::VERSION:
                 _process_version();
             break;
@@ -324,18 +303,13 @@ int Program::process()
             default: throw Exception("Unknown process type!", -10);
         }
     }
-    catch (const Exception& exc)
-    {
+    catch (const Exception &exc) {
         LOG.writeFatal(exc.getComment());
         return exc.getCode();
-    }
-    catch (const std::exception& exc)
-    {
+    } catch (const std::exception &exc) {
         LOG.writeFatal(exc.what());
         return -1;
-    }
-    catch (...)
-    {
+    } catch (...) {
         LOG.writeFatal("UNKNOWN ERROR");
         return -1;
     }

@@ -62,9 +62,9 @@ public:
     virtual ~Star();
 
     Star();
-    Star(const Equatorial& EqC, const Equatorial& EqV);
-    Star(const Galactic& GC, const Galactic& GV);
-    Star(const Cartesian& GCC, const Cartesian& GCV);
+    Star(const Equatorial &EqC, const Equatorial &EqV);
+    Star(const Galactic &GC, const Galactic &GV);
+    Star(const Cartesian &GCC, const Cartesian &GCV);
 
 protected:
     Cartesian m_GCC;
@@ -75,29 +75,29 @@ public:
     Cartesian getGCC() const;
     Cartesian getGCV() const;
 
-    void* getAddData_ptr() const;
-    void setAddData_ptr(void* addData_ptr);
+    void *getAddData_ptr() const;
+    void setAddData_ptr(void *addData_ptr);
 
  // void getcalcEqCandV(Equatorial& EqC, Equatorial& EqV) const;
-    void getcalcGCandV(Galactic& GC, Galactic& GV) const;
-    void getcalcGCCCandV(Cylindrical& GCCC, Cylindrical& GCCV,
-                         double R_Sun, const Cartesian& GCV_Sun) const;
+    void getcalcGCandV(Galactic &GC, Galactic& GV) const;
+    void getcalcGCCCandV(Cylindrical &GCCC, Cylindrical &GCCV,
+                         double R_Sun, const Cartesian &GCV_Sun) const;
 
-    Cartesian getcalcGCC_local(const Cartesian& GCC0) const;
-    void getcalcCCandV_localRot(Cartesian& GCC_localRot, Cartesian& GCV_localRot,
-                                const Cartesian& GCC0, double R_Sun) const;
+    Cartesian getcalcGCC_local(const Cartesian &GCC0) const;
+    void getcalcCCandV_localRot(Cartesian &GCC_localRot, Cartesian &GCV_localRot,
+                                const Cartesian &GCC0, double R_Sun) const;
 
 private:
-    static Galactic _calcGC(const Equatorial& EqC);
-    static Galactic _calcGV(const Equatorial& EqC, const Equatorial& EqV);
-    static Galactic _calcGC(const Cartesian& GCC);
-    static Galactic _calcGV(const Galactic& GC, const Cartesian& GCV);
-    static Cartesian _calcGCC(const Galactic& GC);
-    static Cartesian _calcGCV(const Galactic& GC, const Galactic& GV);
+    static Galactic _calcGC(const Equatorial &EqC);
+    static Galactic _calcGV(const Equatorial &EqC, const Equatorial &EqV);
+    static Galactic _calcGC(const Cartesian &GCC);
+    static Galactic _calcGV(const Galactic &GC, const Cartesian &GCV);
+    static Cartesian _calcGCC(const Galactic &GC);
+    static Cartesian _calcGCV(const Galactic &GC, const Galactic &GV);
 
 protected:
-    static double _calcRotAngleXY(double R_Sun, const Cartesian& GCC);
-    static Cartesian _rotateVector(const Cartesian& vector, double angleXY);
+    static double _calcRotAngleXY(double R_Sun, const Cartesian &GCC);
+    static Cartesian _rotateVector(const Cartesian &vector, double angleXY);
 };
 
 ////////////////////////////////////

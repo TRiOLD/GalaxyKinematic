@@ -1,7 +1,6 @@
 ////////////////////////////////////
 #include "star.h"
 
-#include <iostream>
 #include <cmath>
 
 #include <TMatrix.h>
@@ -10,26 +9,31 @@ using namespace TRiOLD;
 ////////////////////////////////////
 Star::~Star()
 {
+
 }
 
 Star::Star()
     : m_GCC(), m_GCV(), m_addData_ptr(nullptr)
 {
+
 }
 
-Star::Star(const Equatorial& EqC, const Equatorial& EqV)
+Star::Star(const Equatorial &EqC, const Equatorial &EqV)
     : Star(_calcGC(EqC), _calcGV(EqC, EqV))
 {
+
 }
 
-Star::Star(const Galactic& GC, const Galactic& GV)
+Star::Star(const Galactic &GC, const Galactic &GV)
     : m_GCC(_calcGCC(GC)), m_GCV(_calcGCV(GC, GV)), m_addData_ptr(nullptr)
 {
+
 }
 
-Star::Star(const Cartesian& GCC, const Cartesian& GCV)
+Star::Star(const Cartesian &GCC, const Cartesian &GCV)
     : m_GCC(GCC), m_GCV(GCV), m_addData_ptr(nullptr)
 {
+
 }
 
 Star::Cartesian Star::getGCC() const
@@ -42,34 +46,38 @@ Star::Cartesian Star::getGCV() const
     return m_GCV;
 }
 
-void* Star::getAddData_ptr() const
+void *Star::getAddData_ptr() const
 {
     return m_addData_ptr;
 }
 
-void Star::setAddData_ptr(void* addData_ptr)
+void Star::setAddData_ptr(void *addData_ptr)
 {
     m_addData_ptr = addData_ptr;
 }
 
-//void Star::getcalcEqCandV(Equatorial& EqC, Equatorial& EqV) const
+//void Star::getcalcEqCandV(Equatorial &EqC, Equatorial &EqV) const
 //{
+//
 //}
 
-void Star::getcalcGCandV(Galactic& GC, Galactic& GV) const
+void Star::getcalcGCandV(Galactic &GC, Galactic &GV) const
 {
     GC = _calcGC(m_GCC);
     GV = _calcGV(GC, m_GCV);
 }
 
-void Star::getcalcGCCCandV(Cylindrical& GCCC, Cylindrical& GCCV, double R_Sun, const Cartesian& GCV_Sun) const
+void Star::getcalcGCCCandV(Cylindrical &GCCC, Cylindrical &GCCV, double R_Sun, const Cartesian &GCV_Sun) const
 {
     GCCC.R = std::sqrt(std::pow(m_GCC.x-R_Sun, 2.0) + std::pow(m_GCC.y, 2.0));
-    if(GCCC.R == 0.0)
+    if (GCCC.R == 0.0) {
         GCCC.theta = M_PI;
-    else GCCC.theta = std::atan2(m_GCC.y, m_GCC.x-R_Sun);
-    if(GCCC.theta < 0.0)
+    } else {
+        GCCC.theta = std::atan2(m_GCC.y, m_GCC.x-R_Sun);
+    }
+    if (GCCC.theta < 0.0) {
         GCCC.theta += 2*M_PI;
+    }
     GCCC.Z = m_GCC.z;
 
     Cartesian GCV_abs;
@@ -82,13 +90,13 @@ void Star::getcalcGCCCandV(Cylindrical& GCCC, Cylindrical& GCCV, double R_Sun, c
     GCCV.Z = GCV_abs.z;
 }
 
-Star::Cartesian Star::getcalcGCC_local(const Cartesian& GCC0) const
+Star::Cartesian Star::getcalcGCC_local(const Cartesian &GCC0) const
 {
     return Cartesian( m_GCC.x-GCC0.x, m_GCC.y-GCC0.y, m_GCC.z-GCC0.z);
 }
 
-void Star::getcalcCCandV_localRot(Cartesian& GCC_localRot, Cartesian& GCV_localRot,
-                                  const Cartesian& GCC0, double R_Sun) const
+void Star::getcalcCCandV_localRot(Cartesian &GCC_localRot, Cartesian &GCV_localRot,
+                                  const Cartesian &GCC0, double R_Sun) const
 {
     Cartesian GCC_local = getcalcGCC_local(GCC0);
     double rotAngleXY = _calcRotAngleXY(R_Sun, GCC_local);
@@ -96,7 +104,7 @@ void Star::getcalcCCandV_localRot(Cartesian& GCC_localRot, Cartesian& GCV_localR
     GCV_localRot = _rotateVector(m_GCV, rotAngleXY);
 }
 
-Star::Galactic Star::_calcGC(const Equatorial& EqC)
+Star::Galactic Star::_calcGC(const Equatorial &EqC)
 {
     //Ag tensor
     Matrix<double> Ag(
@@ -117,7 +125,7 @@ Star::Galactic Star::_calcGC(const Equatorial& EqC)
     return res;
 }
 
-Star::Galactic Star::_calcGV(const Equatorial& EqC, const Equatorial& EqV)
+Star::Galactic Star::_calcGV(const Equatorial &EqC, const Equatorial &EqV)
 {
     const double ra_gp = 3.36603291968;
     const double de_gp = 0.47347728280;
@@ -131,7 +139,7 @@ Star::Galactic Star::_calcGV(const Equatorial& EqC, const Equatorial& EqV)
     return res;
 }
 
-Star::Galactic Star::_calcGC(const Cartesian& GCC)
+Star::Galactic Star::_calcGC(const Cartesian &GCC)
 {
     Galactic res;
     res.r = std::sqrt(GCC.x*GCC.x + GCC.y*GCC.y + GCC.z*GCC.z);
@@ -140,7 +148,7 @@ Star::Galactic Star::_calcGC(const Cartesian& GCC)
     return res;
 }
 
-Star::Galactic Star::_calcGV(const Galactic& GC, const Cartesian& GCV)
+Star::Galactic Star::_calcGV(const Galactic &GC, const Cartesian &GCV)
 {
     const double k = 4.74057;
     Matrix<double> R(
@@ -156,7 +164,7 @@ Star::Galactic Star::_calcGV(const Galactic& GC, const Cartesian& GCV)
     return res;
 }
 
-Star::Cartesian Star::_calcGCC(const Galactic& GC)
+Star::Cartesian Star::_calcGCC(const Galactic &GC)
 {
     Cartesian res;
     res.x = GC.r * std::cos(GC.l) * std::cos(GC.b);
@@ -165,7 +173,7 @@ Star::Cartesian Star::_calcGCC(const Galactic& GC)
     return res;
 }
 
-Star::Cartesian Star::_calcGCV(const Galactic& GC, const Galactic& GV)
+Star::Cartesian Star::_calcGCV(const Galactic &GC, const Galactic &GV)
 {
     const double k = 4.74057;
     Matrix<double> R(std::cos(GC.l) * std::cos(GC.b), -std::sin(GC.l), -std::cos(GC.l) * std::sin(GC.b),
@@ -179,12 +187,12 @@ Star::Cartesian Star::_calcGCV(const Galactic& GC, const Galactic& GV)
     return res;
 }
 
-double Star::_calcRotAngleXY(double R_Sun, const Cartesian& GCC)
+double Star::_calcRotAngleXY(double R_Sun, const Cartesian &GCC)
 {
     return -(M_PI + std::atan2(GCC.y, GCC.x-R_Sun));
 }
 
-Star::Cartesian Star::_rotateVector(const Cartesian& vector, double angleXY)
+Star::Cartesian Star::_rotateVector(const Cartesian &vector, double angleXY)
 {
     Cartesian res;
     res.x = vector.x*std::cos(angleXY) - vector.y*std::sin(angleXY);

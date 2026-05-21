@@ -6,7 +6,6 @@
 #include "star.h"
 #include "centroid.h"
 
-#include <iostream>
 #include <string>
 #include <vector>
 #include <list>
@@ -52,24 +51,24 @@ namespace CalcCatalog
     ////////////////////////////////
 
     std::list<Star> readCatalog(
-            const std::string& filepath,
-            const ConfigTable& config);
+            const std::string &filepath,
+            const ConfigTable &config);
 
     std::list<Star> readCatalog_agreedStruct(
-            const std::string& filepath);
+            const std::string &filepath);
 
     std::list<Star> createPixCatalog_agreedStruct(
-            const std::list<Star>& stars,
-            const ConfigPixelization& config);
+            const std::list<Star> &stars,
+            const ConfigPixelization &config);
 
     void writeCatalog_agreedStruct(
-            const std::string& filepath,
-            const std::list<Star>& stars);
+            const std::string &filepath,
+            const std::list<Star> &stars);
 
     void writeCentroids(
-            const std::string& filepath,
-            const std::vector<Centroid>& centroids,
-            const ConfigConstants& config);
+            const std::string &filepath,
+            const std::vector<Centroid> &centroids,
+            const ConfigConstants &config);
 };
 
 ////////////////////////////////////

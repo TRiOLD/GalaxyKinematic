@@ -2,7 +2,7 @@
 #include "program.h"
 
 ////////////////////////////////////
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     Program prgm(argc, argv);
     return prgm.process();
