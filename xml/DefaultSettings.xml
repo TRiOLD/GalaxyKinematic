@@ -24,7 +24,7 @@
             <cminStarCount value="10" type="int"/>
         </Pixelization>
         <ConfigConstants>
-            <R_Sun value="8.15" type="double" dim="kpc"/>
+            <R_Sun value="8.28" type="double" dim="kpc"/>
             <VX_Sun value="11.1" type="double" dim="km/sec"/>
             <VY_Sun value="243.13" type="double" dim="km/sec"/>
             <VZ_Sun value="8.31" type="double" dim="km/sec"/>
@@ -35,14 +35,32 @@
             <!-- Computer resources -->
             <threadsAmount value="24" type="int"/>
             <RAMlimit value="128" type="int" dim="GB"/>
-            <!-- Coordinate system grid -->
+
+            <gridType value="0" type="int"/> <!-- 0 = cartesian, 1 = cylindrical -->
+            
+            <!-- Cartesian grid parameters -->
             <minX value="-8.0" type="double" dim="kpc"/>
             <maxX value="8.0" type="double" dim="kpc"/>
+            <stepX value="0.1" type="double" dim="kpc"/>
             <minY value="-8.0" type="double" dim="kpc"/>
             <maxY value="8.0" type="double" dim="kpc"/>
-            <minZ value="-5.0" type="double" dim="kpc"/>
-            <maxZ value="5.0" type="double" dim="kpc"/>
-            <step value="0.1" type="double" dim="kpc"/>
+            <stepY value="0.1" type="double" dim="kpc"/>
+
+            <!-- Cylindrical grid parameters -->
+            <minR value="0.0" type="double" dim="kpc"/>
+            <maxR value="25.0" type="double" dim="kpc"/>
+            <stepR value="0.1" type="double" dim="kpc"/>
+            <shiftR value="8.28" type="double" dim="kpc"/>
+            <minTheta value="90.0" type="double" dim="deg"/>
+            <maxTheta value="270.0" type="double" dim="deg"/>
+            <stepTheta value="1.0" type="double" dim="deg"/>
+
+            <!-- Common Z grid parameters -->
+            <minZ value="-1.0" type="double" dim="kpc"/>
+            <maxZ value="1.0" type="double" dim="kpc"/>
+            <stepZ value="0.5" type="double" dim="kpc"/>
+
+            <!-- Star selection region around centroid -->
             <starsRegionRadius value="1.0" type="double" dim="kpc"/>
         </ConfigProcessing>
     </Kinematic>

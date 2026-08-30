@@ -191,6 +191,12 @@ bool ConfigLoader::load(CalcKinematic::ConfigProcessing &config, const std::stri
     if (_check(param, "int", "GB")) {
         config.RAMlimit = param.attribute("value").as_int()*1024;
     }
+
+    param = configNode.child("gridType");
+    if (_check(param, "int")) {
+        config.gridType = param.attribute("value").as_int();
+    }
+
     param = configNode.child("minX");
     if (_check(param, "double", "kpc")) {
         config.minX = param.attribute("value").as_double();
@@ -198,6 +204,10 @@ bool ConfigLoader::load(CalcKinematic::ConfigProcessing &config, const std::stri
     param = configNode.child("maxX");
     if (_check(param, "double", "kpc")) {
         config.maxX = param.attribute("value").as_double();
+    }
+    param = configNode.child("stepX");
+    if (_check(param, "double", "kpc")) {
+        config.stepX = param.attribute("value").as_double();
     }
     param = configNode.child("minY");
     if (_check(param, "double", "kpc")) {
@@ -207,6 +217,41 @@ bool ConfigLoader::load(CalcKinematic::ConfigProcessing &config, const std::stri
     if (_check(param, "double", "kpc")) {
         config.maxY = param.attribute("value").as_double();
     }
+    param = configNode.child("stepY");
+    if (_check(param, "double", "kpc")) {
+        config.stepY = param.attribute("value").as_double();
+    }
+
+    param = configNode.child("minR");
+    if (_check(param, "double", "kpc")) {
+        config.minR = param.attribute("value").as_double();
+    }
+    param = configNode.child("maxR");
+    if (_check(param, "double", "kpc")) {
+        config.maxR = param.attribute("value").as_double();
+    }
+    param = configNode.child("stepR");
+    if (_check(param, "double", "kpc")) {
+        config.stepR = param.attribute("value").as_double();
+    }
+    param = configNode.child("shiftR");
+    if (_check(param, "double", "kpc")) {
+        config.shiftR = param.attribute("value").as_double();
+    }
+
+    param = configNode.child("minTheta");
+    if (_check(param, "double", "deg")) {
+        config.minTheta = param.attribute("value").as_double();
+    }
+    param = configNode.child("maxTheta");
+    if (_check(param, "double", "deg")) {
+        config.maxTheta = param.attribute("value").as_double();
+    }
+    param = configNode.child("stepTheta");
+    if (_check(param, "double", "deg")) {
+        config.stepTheta = param.attribute("value").as_double();
+    }
+
     param = configNode.child("minZ");
     if (_check(param, "double", "kpc")) {
         config.minZ = param.attribute("value").as_double();
@@ -215,10 +260,11 @@ bool ConfigLoader::load(CalcKinematic::ConfigProcessing &config, const std::stri
     if (_check(param, "double", "kpc")) {
         config.maxZ = param.attribute("value").as_double();
     }
-    param = configNode.child("step");
+    param = configNode.child("stepZ");
     if (_check(param, "double", "kpc")) {
-        config.step = param.attribute("value").as_double();
+        config.stepZ = param.attribute("value").as_double();
     }
+
     param = configNode.child("starsRegionRadius");
     if (_check(param, "double", "kpc")) {
         config.starsRegionRadius = param.attribute("value").as_double();

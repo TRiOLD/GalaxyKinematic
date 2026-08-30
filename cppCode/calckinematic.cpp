@@ -176,40 +176,83 @@ std::vector<CentroidProcessingData> _dataPreparation(
         const CalcKinematic::ConfigProcessing &config,
         const std::list<Star> &allStars)
 {
-    std::size_t cAmountX = (config.maxX - config.minX) / config.step + 1;
-    std::size_t cAmountY = (config.maxY - config.minY) / config.step + 1;
-    std::size_t cAmountZ = (config.maxZ - config.minZ) / config.step + 1;
-    std::size_t centroidsAmount = cAmountX * cAmountY * cAmountZ;
-    std::vector<CentroidProcessingData> res(centroidsAmount);
+    std::size_t cAmountX = 0;
+    std::size_t cAmountY = 0;
+    std::size_t cAmountR = 0;
+    std::size_t cAmountTheta = 0;
+    std::size_t cAmountZ = 0;
+    std::size_t centroidsAmount = 0;
 
-    std::size_t c = 0;
+    if (config.gridType == 0) {         // cartesian grid
+        cAmountX = static_cast<std::size_t>((config.maxX - config.minX) / config.stepX) + 1;
+        cAmountY = static_cast<std::size_t>((config.maxY - config.minY) / config.stepY) + 1;
+        cAmountZ = static_cast<std::size_t>((config.maxZ - config.minZ) / config.stepZ) + 1;
+        centroidsAmount = cAmountX * cAmountY * cAmountZ;
+    } else if (config.gridType == 1) {  // cylindrical grid
+        cAmountR = static_cast<std::size_t>((config.maxR - config.minR) / config.stepR) + 1;
+        cAmountTheta = static_cast<std::size_t>((config.maxTheta - config.minTheta) / config.stepTheta) + 1;
+        cAmountZ = static_cast<std::size_t>((config.maxZ - config.minZ) / config.stepZ) + 1;
+        centroidsAmount = cAmountR * cAmountTheta * cAmountZ;
+    } else {
+        throw Exception("Unknown grid type: " + std::to_string(config.gridType));
+    }
+
+    std::vector<CentroidProcessingData> res(centroidsAmount);
     std::size_t maxThreadsAmount = config.threadsAmount;
     if (maxThreadsAmount > centroidsAmount) {
         maxThreadsAmount = centroidsAmount;
     }
+
     ThreadPool pool(maxThreadsAmount);
     std::mutex maxEstimatedRAMMtx;
     size_t maxEstimatedRAM = 0;
-    for (std::size_t i = 0; i < cAmountX; ++i)
-        for (std::size_t j = 0; j < cAmountY; ++j)
-            for (std::size_t k = 0; k < cAmountZ; ++k) {
-                pool.enqueue([&, c, i, j, k]() {
-                    res.at(c).centroidGCC = Centroid::Cartesian(
-                        config.minX + config.step * i,
-                        config.minY + config.step * j,
-                        config.minZ + config.step * k);
-                    _calcStarsAmount(res.at(c).localStarsAmount, allStars,
-                                     res.at(c).centroidGCC, config.starsRegionRadius);
-                    res.at(c).estimatedRAM = _estimateThreadRAM(res.at(c).localStarsAmount);
-                    {
-                        std::lock_guard lock(maxEstimatedRAMMtx);
-                        if (maxEstimatedRAM < res.at(c).estimatedRAM) {
-                            maxEstimatedRAM = res.at(c).estimatedRAM;
+    std::size_t c = 0;
+    if (config.gridType == 0) { // cartesian grid
+        for (std::size_t i = 0; i < cAmountX; ++i) {
+            for (std::size_t j = 0; j < cAmountY; ++j) {
+                for (std::size_t k = 0; k < cAmountZ; ++k) {
+                    pool.enqueue([&, c, i, j, k]() {
+                        res.at(c).centroidGCC = Centroid::Cartesian(
+                            config.minX + config.stepX * i, config.minY + config.stepY * j, config.minZ + config.stepZ * k);
+                        _calcStarsAmount(res.at(c).localStarsAmount, allStars, res.at(c).centroidGCC, config.starsRegionRadius);
+                        res.at(c).estimatedRAM = _estimateThreadRAM(res.at(c).localStarsAmount);
+                        {
+                            std::lock_guard lock(maxEstimatedRAMMtx);
+                            if (maxEstimatedRAM < res.at(c).estimatedRAM) {
+                                maxEstimatedRAM = res.at(c).estimatedRAM;
+                            }
                         }
-                    }
-                });
-                ++c;
+                    });
+                    ++c;
+                }
             }
+        }
+    } else {                    // cylindrical grid
+        for (std::size_t i = 0; i < cAmountR; ++i) {
+            for (std::size_t j = 0; j < cAmountTheta; ++j) {
+                for (std::size_t k = 0; k < cAmountZ; ++k) {
+                    pool.enqueue([&, c, i, j, k]() {
+                        const double R = config.minR + config.stepR * i;
+                        const double ThetaDeg = config.minTheta + config.stepTheta * j;
+                        const double Theta = ThetaDeg * M_PI / 180.0;
+                        const double X = R * std::cos(Theta) + config.shiftR;
+                        const double Y = R * std::sin(Theta);
+                        const double Z = config.minZ + config.stepZ * k;
+                        res.at(c).centroidGCC = Centroid::Cartesian(X, Y, Z);
+                        _calcStarsAmount(res.at(c).localStarsAmount, allStars, res.at(c).centroidGCC, config.starsRegionRadius);
+                        res.at(c).estimatedRAM = _estimateThreadRAM(res.at(c).localStarsAmount);
+                        {
+                            std::lock_guard lock(maxEstimatedRAMMtx);
+                            if (maxEstimatedRAM < res.at(c).estimatedRAM) {
+                                maxEstimatedRAM = res.at(c).estimatedRAM;
+                            }
+                        }
+                    });
+                    ++c;
+                }
+            }
+        }
+    }
     pool.wait();
     if (maxEstimatedRAM > config.RAMlimit) {
         throw Exception("Needed minimum " + std::to_string(maxEstimatedRAM) + "MB RAM for processing");
